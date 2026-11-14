@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from typing import Optional
 import uvicorn
 
 app = FastAPI()
@@ -8,7 +9,7 @@ def root():
     return { "message": "API funcionando" }
 
 @app.get("/saudacao")
-def saudar(nome: str):
+def saudar(nome: Optional[str] = None):
     if nome:
         return {  "message": f"Olá, {nome}!" }
     return  { "message": "Olá, anônimo!" }
