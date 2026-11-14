@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 from typing import Optional
+import database
 import uvicorn
 
 app = FastAPI()
+
+# database.criar_tabela() deixei em comentario pra nao tentar criar toda vez q rodar a api
 
 @app.get("/")
 def root():
