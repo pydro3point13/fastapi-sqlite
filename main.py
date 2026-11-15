@@ -96,6 +96,7 @@ def remove(id: int = None):
         cursor.execute("""DELETE FROM usuarios
             WHERE id = ?""", (id,))
         affected = cursor.rowcount
+        conexao.commit()
         conexao.close()
         if affected > 0:
             return { "message": f"User {id} deletado" }
@@ -107,5 +108,6 @@ def remove(id: int = None):
         status_code=404,
         detail="Tá é doido, quer deletar o database todo?"
         )
+
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
