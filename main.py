@@ -14,8 +14,9 @@ class UsuarioCreate(BaseModel):
     @classmethod
     def validateName(cls, value):
         if not value.strip():
-            raise HTTPException(status_code=400,
-                                            detail="Nome inválido"
+            raise HTTPException(
+                                                status_code=400,
+                                                detail="Nome inválido"
                                             )
         return value.strip()
 
@@ -32,14 +33,41 @@ def saudar(nome: Optional[str] = None):
         return {  "message": f"Olá, {nome}!" }
     return  { "message": "Olá, anônimo!" }
 
-@app.post("/usuario")
+@app.post("/usuario", status_code=201)
 def register(user: UsuarioCreate = Body()):
     conexao = database.get_connection()
     cursor = conexao.cursor()
     cursor.execute("INSERT INTO usuarios (nome) VALUES (?)",
                    (user.nome,))
+    last_id = cursor.lastrowid
     conexao.commit()
     conexao.close()
+    return {
+                    "id": last_id,
+                    "nome": user.nome
+                }
+
+@app.get("/usuarios")
+def get_user(id: Optional[int] = None):
+    if id:
+        conexao = database.get_connection()
+        cursor = conexao.cursor()
+        cursor.execute("SELECT * FROM usuarios WHERE id = ?", (id,))
+        user = cursor.fetchone()
+        if user:
+            return {
+                "id": user['id'],
+                "nome": user['nome']
+                }
+        raise HTTPException(
+            status_code=404,
+            detail="Usuário não encontrado"
+            )
+    raise HTTPException(
+        status_code=400,
+        detail="Id não informado"
+        )
+    
 
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
