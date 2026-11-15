@@ -17,4 +17,5 @@ def criar_tabela():
                             )
     conexao.commit()
     conexao.close()
+    return conexao, cursor
     
