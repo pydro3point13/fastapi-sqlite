@@ -49,12 +49,12 @@ def register(user: UsuarioCreate = Body()):
 
 @app.get("/usuarios")
 def get_user(id: Optional[int] = None):
-    if id:
+    if id is not None:
         conexao = database.get_connection()
         cursor = conexao.cursor()
         cursor.execute("SELECT * FROM usuarios WHERE id = ?", (id,))
         user = cursor.fetchone()
-        if user:
+        if user is not None:
             return {
                 "id": user['id'],
                 "nome": user['nome']
@@ -67,6 +67,7 @@ def get_user(id: Optional[int] = None):
         status_code=400,
         detail="Id não informado"
         )
+    conexao.close()
     
 
 if __name__ == "__main__":
