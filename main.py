@@ -78,36 +78,42 @@ def update_user(id: int,
                 user: UsuarioCreate = Body()):
     conexao = database.get_connection()
     cursor = conexao.cursor()
-    cursor.execute("""UPDATE usuarios
-        SET nome = ?
-        WHERE id = ?""", (user.nome, id))
-    conexao.commit()
-    conexao.close()
-    return {
-        "id": id,
-        "nome": user.nome
-        }
+    user_exists = cursor.execute("""SELECT * FROM usuarios
+        WHERE id = ?""", (id,)).fetchone()
+    try:
+        if user_exists:
+            cursor.execute("""UPDATE usuarios
+                SET nome = ?
+                WHERE id = ?""", (user.nome, id))
+            conexao.commit()
+            return {
+                "id": id,
+                "nome": user.nome
+                }
+        raise HTTPException(status_code=404,
+            detail="Este user não existe no banco"
+            )
+    finally:
+        conexao.close()
+        
 
-@app.delete("/usuarios")
-def remove(id: int = None):
+@app.delete("/usuarios/{id}")
+def remove(id: int):
     conexao = database.get_connection()
     cursor = conexao.cursor()
-    if id is not None:
+    try:
         cursor.execute("""DELETE FROM usuarios
             WHERE id = ?""", (id,))
         affected = cursor.rowcount
-        conexao.commit()
-        conexao.close()
         if affected > 0:
+            conexao.commit()
             return { "message": f"User {id} deletado" }
         raise HTTPException(
             status_code=404,
             detail=f"Usuário com id {id} não encontrado"
             )
-    raise HTTPException(
-        status_code=404,
-        detail="Tá é doido, quer deletar o database todo?"
-        )
+    finally:
+        conexao.close()
 
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
