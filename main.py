@@ -15,9 +15,9 @@ class UsuarioCreate(BaseModel):
     def validateName(cls, value):
         if not value.strip():
             raise HTTPException(
-                                                status_code=400,
-                                                detail="Nome inválido"
-                                            )
+                status_code=400,
+                detail="Nome inválido"
+                )
         return value.strip()
 
 
@@ -43,15 +43,15 @@ def register(user: UsuarioCreate = Body()):
     conexao.commit()
     conexao.close()
     return {
-                    "id": last_id,
-                    "nome": user.nome
-                }
+        "id": last_id,
+        "nome": user.nome
+        }
 
 @app.get("/usuarios")
 def get_user(id: Optional[int] = None):
     conexao = database.get_connection()
     cursor = conexao.cursor()
-    if id:
+    try: 
         cursor.execute("SELECT * FROM usuarios WHERE id = ?", (id,))
         user = cursor.fetchone()
         if user is not None:
@@ -63,20 +63,17 @@ def get_user(id: Optional[int] = None):
             status_code=404,
             detail="Usuário não encontrado"
             )
-    elif id is not None:
+    except TypeError:
         cursor.execute("SELECT * FROM usuarios")
         users = cursor.fetchall()
-        if users is not None:
+        if users:
             return users
         raise HTTPException(
             status_code=404,
             detail="Sem usuários no database"
             )
-    raise HTTPException(
-        status_code=400,
-        detail="Id não informado"
-        )
-    conexao.close()
+    finally:
+        conexao.close()
     
 
 if __name__ == "__main__":
