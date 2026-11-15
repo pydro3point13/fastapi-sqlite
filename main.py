@@ -49,9 +49,9 @@ def register(user: UsuarioCreate = Body()):
 
 @app.get("/usuarios")
 def get_user(id: Optional[int] = None):
-    if id is not None:
-        conexao = database.get_connection()
-        cursor = conexao.cursor()
+    conexao = database.get_connection()
+    cursor = conexao.cursor()
+    if id:
         cursor.execute("SELECT * FROM usuarios WHERE id = ?", (id,))
         user = cursor.fetchone()
         if user is not None:
@@ -62,6 +62,15 @@ def get_user(id: Optional[int] = None):
         raise HTTPException(
             status_code=404,
             detail="Usuário não encontrado"
+            )
+    elif id is not None:
+        cursor.execute("SELECT * FROM usuarios")
+        users = cursor.fetchall()
+        if users is not None:
+            return users
+        raise HTTPException(
+            status_code=404,
+            detail="Sem usuários no database"
             )
     raise HTTPException(
         status_code=400,
