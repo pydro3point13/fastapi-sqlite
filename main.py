@@ -19,10 +19,7 @@ class UsuarioCreate(BaseModel):
                 detail="Nome inválido"
                 )
         return value.strip()
-
-
-
-
+# -----------------------------------------------
 @app.get("/")
 def root():
     return { "message": "API funcionando" }
@@ -76,6 +73,39 @@ def get_user(id: Optional[int] = None):
     finally:
         conexao.close()
     
+@app.put("/usuarios/{id}")
+def update_user(id: int,
+                user: UsuarioCreate = Body()):
+    conexao = database.get_connection()
+    cursor = conexao.cursor()
+    cursor.execute("""UPDATE usuarios
+        SET nome = ?
+        WHERE id = ?""", (user.nome, id))
+    conexao.commit()
+    conexao.close()
+    return {
+        "id": id,
+        "nome": user.nome
+        }
 
+@app.delete("/usuarios")
+def remove(id: int = None):
+    conexao = database.get_connection()
+    cursor = conexao.cursor()
+    if id is not None:
+        cursor.execute("""DELETE FROM usuarios
+            WHERE id = ?""", (id,))
+        affected = cursor.rowcount
+        conexao.close()
+        if affected > 0:
+            return { "message": f"User {id} deletado" }
+        raise HTTPException(
+            status_code=404,
+            detail=f"Usuário com id {id} não encontrado"
+            )
+    raise HTTPException(
+        status_code=404,
+        detail="Tá é doido, quer deletar o database todo?"
+        )
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
