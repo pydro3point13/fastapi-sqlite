@@ -7,7 +7,6 @@ import uvicorn
 app = FastAPI()
 
 class UsuarioCreate(BaseModel):
-    id: int = Field(gt=0)
     nome: str = Field(min_length=3)
     model_config = ConfigDict(extra='forbid')
     
@@ -21,7 +20,6 @@ class UsuarioCreate(BaseModel):
         return value.strip()
 
 
-conexao, cursor = database.criar_tabela()
 
 
 @app.get("/")
@@ -36,8 +34,12 @@ def saudar(nome: Optional[str] = None):
 
 @app.post("/usuario")
 def register(user: UsuarioCreate = Body()):
-    cursor.execute("""INSERT INTO usuarios (?, ?)"""
-                           (user.id, user.nome))
+    conexao = database.get_connection()
+    cursor = conexao.cursor()
+    cursor.execute("INSERT INTO usuarios (nome) VALUES (?)",
+                   (user.nome,))
+    conexao.commit()
+    conexao.close()
 
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
