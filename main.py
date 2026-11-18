@@ -33,99 +33,84 @@ def saudar(nome: Optional[str] = None):
 
 @app.post("/usuario", status_code=201)
 def register(user: UsuarioCreate = Body()):
-    conexao = None
-    try:
-        conexao = database.get_connection()
-        cursor = conexao.cursor()
-        cursor.execute("INSERT INTO usuarios (nome) VALUES (?)",
-                       (user.nome,))
-        last_id = cursor.lastrowid
-        conexao.commit()
-        return {
-            "id": last_id,
-            "nome": user.nome
-            }
-    except sql.OperationalError as e:
-        raise HTTPException(
-            status_code=500,
-            detail="Erro no servidor. Tente novamente mais tarde..."
-            )
-    finally:
-        if conexao is not None:
-            conexao.close()
+    with database.get_connection() as conexao:
+        try:
+            cursor = conexao.cursor()
+            cursor.execute("INSERT INTO usuarios (nome) VALUES (?)",
+                           (user.nome,))
+            last_id = cursor.lastrowid
+            conexao.commit()
+            return {
+                "id": last_id,
+                "nome": user.nome
+                }
+        except sql.OperationalError as e:
+            raise HTTPException(
+                status_code=500,
+                detail="Erro no servidor. Tente novamente mais tarde..."
+                )
 
 @app.get("/usuarios")
 def get_user(id: Optional[int] = None):
-    conexao = None
-    try:
-        conexao = database.get_connection()
-        cursor = conexao.cursor()
-        if id is not None:
-            cursor.execute("SELECT * FROM usuarios WHERE id = ?", (id,))
-            user = cursor.fetchone()
-            if user is not None:
-                return {
-                    "id": user['id'],
-                    "nome": user['nome']
-                    }
+    with database.get_connection() as conexao:
+        try:
+            cursor = conexao.cursor()
+            if id is not None:
+                cursor.execute("SELECT * FROM usuarios WHERE id = ?", (id,))
+                user = cursor.fetchone()
+                if user is not None:
+                    return {
+                        "id": user['id'],
+                        "nome": user['nome']
+                        }
+                raise HTTPException(
+                    status_code=404,
+                    detail="Usuário não encontrado"
+                    )
+            else:
+                cursor.execute("SELECT * FROM usuarios")
+                users = cursor.fetchall()
+                if users:
+                    return users
+                raise HTTPException(
+                    status_code=404,
+                    detail="Sem usuários no database"
+                    )
+        except sql.OperationalError as e:
             raise HTTPException(
-                status_code=404,
-                detail="Usuário não encontrado"
-                )
-        else:
-            cursor.execute("SELECT * FROM usuarios")
-            users = cursor.fetchall()
-            if users:
-                return users
-            raise HTTPException(
-                status_code=404,
-                detail="Sem usuários no database"
-                )
-    except sql.OperationalError as e:
-        raise HTTPException(
-            status_code=500,
-            detail="Erro interno. Tente novamente mais tarde..."
-    )
-    finally:
-        if conexao is not None:
-            conexao.close()
+                status_code=500,
+                detail="Erro interno. Tente novamente mais tarde..."
+        )
     
 @app.put("/usuarios/{id}")
 def update_user(id: int,
                 user: UsuarioCreate = Body()):
-    conexao = None
-    try:
-        conexao = database.get_connection()
-        cursor = conexao.cursor()
-        user_exists = cursor.execute("""SELECT * FROM usuarios
-        WHERE id = ?""", (id,)).fetchone()
-        if user_exists:
-            cursor.execute("""UPDATE usuarios
-                SET nome = ?
-                WHERE id = ?""", (user.nome, id))
-            conexao.commit()
-            return {
-                "id": id,
-                "nome": user.nome
-                }
-        raise HTTPException(status_code=404,
-            detail="Este user não existe no banco"
-            )
-    except sql.OperationalError as e:
-        raise HTTPException(
-            status_code=500,
-            detail="Internal Server Error."
-            )
-    finally:
-        if conexao is not None:
-            conexao.close()
-        
+    with database.get_connection() as conexao:
+        try:
+            cursor = conexao.cursor()
+            user_exists = cursor.execute("""SELECT * FROM usuarios
+            WHERE id = ?""", (id,)).fetchone()
+            if user_exists:
+                cursor.execute("""UPDATE usuarios
+                    SET nome = ?
+                    WHERE id = ?""", (user.nome, id))
+                conexao.commit()
+                return {
+                    "id": id,
+                    "nome": user.nome
+                    }
+            raise HTTPException(status_code=404,
+                detail="Este user não existe no banco"
+                )
+        except sql.OperationalError as e:
+            raise HTTPException(
+                status_code=500,
+                detail="Internal Server Error."
+                )        
 
 @app.delete("/usuarios/{id}")
 def remove(id: int):
-    conexao = None
-    try:
-        conexao = database.get_connection()
+    with database.get_connection() as conexao:
         cursor = conexao.cursor()
         cursor.execute("""DELETE FROM usuarios
             WHERE id = ?""", (id,))
@@ -137,9 +122,6 @@ def remove(id: int):
             status_code=404,
             detail=f"Usuário com id {id} não encontrado"
             )
-    finally:
-        if conexao is not None:
-            conexao.close()
 
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
