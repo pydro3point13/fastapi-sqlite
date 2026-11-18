@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Body
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator, ConfigDict
+import sqlite3 as sql
 import database
 import uvicorn
 
@@ -32,23 +33,33 @@ def saudar(nome: Optional[str] = None):
 
 @app.post("/usuario", status_code=201)
 def register(user: UsuarioCreate = Body()):
-    conexao = database.get_connection()
-    cursor = conexao.cursor()
-    cursor.execute("INSERT INTO usuarios (nome) VALUES (?)",
-                   (user.nome,))
-    last_id = cursor.lastrowid
-    conexao.commit()
-    conexao.close()
-    return {
-        "id": last_id,
-        "nome": user.nome
-        }
+    conexao = None
+    try:
+        conexao = database.get_connection()
+        cursor = conexao.cursor()
+        cursor.execute("INSERT INTO usuarios (nome) VALUES (?)",
+                       (user.nome,))
+        last_id = cursor.lastrowid
+        conexao.commit()
+        return {
+            "id": last_id,
+            "nome": user.nome
+            }
+    except sql.OperationalError as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Erro no servidor. Tente novamente mais tarde..."
+            )
+    finally:
+        if conexao is not None:
+            conexao.close()
 
 @app.get("/usuarios")
 def get_user(id: Optional[int] = None):
-    conexao = database.get_connection()
-    cursor = conexao.cursor()
+    conexao = None
     try:
+        conexao = database.get_connection()
+        cursor = conexao.cursor()
         if id is not None:
             cursor.execute("SELECT * FROM usuarios WHERE id = ?", (id,))
             user = cursor.fetchone()
@@ -70,17 +81,24 @@ def get_user(id: Optional[int] = None):
                 status_code=404,
                 detail="Sem usuários no database"
                 )
+    except sql.OperationalError as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno. Tente novamente mais tarde..."
+    )
     finally:
-        conexao.close()
+        if conexao is not None:
+            conexao.close()
     
 @app.put("/usuarios/{id}")
 def update_user(id: int,
                 user: UsuarioCreate = Body()):
-    conexao = database.get_connection()
-    cursor = conexao.cursor()
-    user_exists = cursor.execute("""SELECT * FROM usuarios
-        WHERE id = ?""", (id,)).fetchone()
+    conexao = None
     try:
+        conexao = database.get_connection()
+        cursor = conexao.cursor()
+        user_exists = cursor.execute("""SELECT * FROM usuarios
+        WHERE id = ?""", (id,)).fetchone()
         if user_exists:
             cursor.execute("""UPDATE usuarios
                 SET nome = ?
@@ -93,15 +111,22 @@ def update_user(id: int,
         raise HTTPException(status_code=404,
             detail="Este user não existe no banco"
             )
+    except sql.OperationalError as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Server Error."
+            )
     finally:
-        conexao.close()
+        if conexao is not None:
+            conexao.close()
         
 
 @app.delete("/usuarios/{id}")
 def remove(id: int):
-    conexao = database.get_connection()
-    cursor = conexao.cursor()
+    conexao = None
     try:
+        conexao = database.get_connection()
+        cursor = conexao.cursor()
         cursor.execute("""DELETE FROM usuarios
             WHERE id = ?""", (id,))
         affected = cursor.rowcount
@@ -113,7 +138,8 @@ def remove(id: int):
             detail=f"Usuário com id {id} não encontrado"
             )
     finally:
-        conexao.close()
+        if conexao is not None:
+            conexao.close()
 
 if __name__ == "__main__":
     uvicorn.run("main:app", reload=True)
